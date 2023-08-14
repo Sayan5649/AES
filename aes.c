@@ -3,6 +3,27 @@
 #include<stdint.h>
 
 
+// Implementation: subBytes
+void subBytes(unsigned char *state);
+// Implementation: shiftRows
+void shiftRows(unsigned char *state);
+void shiftRow(unsigned char *state, unsigned char nbr);
+// Implementation: addRoundKey
+void addRoundKey(unsigned char *state, unsigned char *roundKey);
+// Implementation: mixColumns
+unsigned char galois_multiplication(unsigned char a, unsigned char b);
+void mixColumns(unsigned char *state);
+void mixColumn(unsigned char *column);
+
+
+
+void invSubBytes(unsigned char *state);
+void invShiftRows(unsigned char *state);
+void invShiftRow(unsigned char *state, unsigned char nbr);
+void invMixColumns(unsigned char *state);
+void invMixColumn(unsigned char *column);
+void aes_invRound(unsigned char *state, unsigned char *roundKey);
+
 unsigned char getSBoxValue(unsigned char num)
 {
     return sbox[num];
@@ -61,15 +82,6 @@ void inv_subBytes(unsigned char *state)
         state[i] = getSBoxInvert(state[i]);
 };
 
-void rotate(unsigned *state)
-{
-    unsigned c;
-    int i;
-    c = state[0];
-    for (i = 0; i < 3; i++)
-        state[i] = state[i + 1];
-    state[3] = c;
-};
 
 
 
@@ -98,10 +110,180 @@ void shiftRow(unsigned *state, unsigned char nbr)
 };
 
 
+//MIXCOLUMN
 
-void col_mix(unsigned *state)
- { 
-   int i;
-   for(i=0;)
- };
+unsigned char galois_multiplication(unsigned char a, unsigned char b)
+{
+    unsigned char p = 0;
+    unsigned char counter;
+    unsigned char hi_bit_set;
+    for (counter = 0; counter < 8; counter++)
+    {
+        if ((b & 1) == 1)
+            p ^= a;
+        hi_bit_set = (a & 0x80);
+        a <<= 1;
+        if (hi_bit_set == 0x80)
+            a ^= 0x1b;
+        b >>= 1;
+    }
+    return p;
+}
 
+void mixColumns(unsigned char *state)
+{
+    int i, j;
+    unsigned char column[4];
+
+    // iterate over the 4 columns
+    for (i = 0; i < 4; i++)
+    {
+        // construct one column by iterating over the 4 rows
+        for (j = 0; j < 4; j++)
+        {
+            column[j] = state[(j * 4) + i];
+        }
+
+        // apply the mixColumn on one column
+        mixColumn(column);
+
+        // put the values back into the state
+        for (j = 0; j < 4; j++)
+        {
+            state[(j * 4) + i] = column[j];
+        }
+    }
+}
+
+void mixColumn(unsigned char *column)
+{
+    unsigned char cpy[4];
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+        cpy[i] = column[i];
+    }
+    column[0] = galois_multiplication(cpy[0], 2) ^
+                galois_multiplication(cpy[3], 1) ^
+                galois_multiplication(cpy[2], 1) ^
+                galois_multiplication(cpy[1], 3);
+
+    column[1] = galois_multiplication(cpy[1], 2) ^
+                galois_multiplication(cpy[0], 1) ^
+                galois_multiplication(cpy[3], 1) ^
+                galois_multiplication(cpy[2], 3);
+
+    column[2] = galois_multiplication(cpy[2], 2) ^
+                galois_multiplication(cpy[1], 1) ^
+                galois_multiplication(cpy[0], 1) ^
+                galois_multiplication(cpy[3], 3);
+
+    column[3] = galois_multiplication(cpy[3], 2) ^
+                galois_multiplication(cpy[2], 1) ^
+                galois_multiplication(cpy[1], 1) ^
+                galois_multiplication(cpy[0], 3);
+}
+
+
+
+void invMixColumns(unsigned char *state)
+{
+    int i, j;
+    unsigned char column[4];
+
+    // iterate over the 4 columns
+    for (i = 0; i < 4; i++)
+    {
+        // construct one column by iterating over the 4 rows
+        for (j = 0; j < 4; j++)
+        {
+            column[j] = state[(j * 4) + i];
+        }
+
+        // apply the invMixColumn on one column
+        invMixColumn(column);
+
+        // put the values back into the state
+        for (j = 0; j < 4; j++)
+        {
+            state[(j * 4) + i] = column[j];
+        }
+    }
+}
+
+
+//INVSHIFTROW
+void invShiftRows(unsigned char *state)
+{
+    int i;
+    // iterate over the 4 rows and call invShiftRow() with that row
+    for (i = 0; i < 4; i++)
+        invShiftRow(state + i * 4, i);
+}
+
+void invShiftRow(unsigned char *state, unsigned char nbr)
+{
+    int i, j;
+    unsigned char tmp;
+    // each iteration shifts the row to the right by 1
+    for (i = 0; i < nbr; i++)
+    {
+        tmp = state[3];
+        for (j = 3; j > 0; j--)
+            state[j] = state[j - 1];
+        state[0] = tmp;
+    }
+}
+
+
+//INVMIXCOL
+void invMixColumns(unsigned char *state)
+{
+    int i, j;
+    unsigned char column[4];
+
+    // iterate over the 4 columns
+    for (i = 0; i < 4; i++)
+    {
+        // construct one column by iterating over the 4 rows
+        for (j = 0; j < 4; j++)
+        {
+            column[j] = state[(j * 4) + i];
+        }
+
+        // apply the invMixColumn on one column
+        invMixColumn(column);
+
+        // put the values back into the state
+        for (j = 0; j < 4; j++)
+        {
+            state[(j * 4) + i] = column[j];
+        }
+    }
+}
+
+void invMixColumn(unsigned char *column)
+{
+    unsigned char cpy[4];
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+        cpy[i] = column[i];
+    }
+    column[0] = galois_multiplication(cpy[0], 14) ^
+                galois_multiplication(cpy[3], 9) ^
+                galois_multiplication(cpy[2], 13) ^
+                galois_multiplication(cpy[1], 11);
+    column[1] = galois_multiplication(cpy[1], 14) ^
+                galois_multiplication(cpy[0], 9) ^
+                galois_multiplication(cpy[3], 13) ^
+                galois_multiplication(cpy[2], 11);
+    column[2] = galois_multiplication(cpy[2], 14) ^
+                galois_multiplication(cpy[1], 9) ^
+                galois_multiplication(cpy[0], 13) ^
+                galois_multiplication(cpy[3], 11);
+    column[3] = galois_multiplication(cpy[3], 14) ^
+                galois_multiplication(cpy[2], 9) ^
+                galois_multiplication(cpy[1], 13) ^
+                galois_multiplication(cpy[0], 11);
+}
