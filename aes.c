@@ -186,32 +186,6 @@ void mixColumn(unsigned char *column)
 
 
 
-void invMixColumns(unsigned char *state)
-{
-    int i, j;
-    unsigned char column[4];
-
-    // iterate over the 4 columns
-    for (i = 0; i < 4; i++)
-    {
-        // construct one column by iterating over the 4 rows
-        for (j = 0; j < 4; j++)
-        {
-            column[j] = state[(j * 4) + i];
-        }
-
-        // apply the invMixColumn on one column
-        invMixColumn(column);
-
-        // put the values back into the state
-        for (j = 0; j < 4; j++)
-        {
-            state[(j * 4) + i] = column[j];
-        }
-    }
-}
-
-
 //INVSHIFTROW
 void invShiftRows(unsigned char *state)
 {
